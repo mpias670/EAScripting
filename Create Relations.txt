@@ -1,0 +1,99 @@
+option explicit
+
+!INC Local Scripts.EAConstants-VBScript
+
+'
+' Script Name: Create Relations
+' Author: Matthew Pias
+' Purpose: Creates relations from item relationship matrix in excel
+' Date: 11/15/2023
+'
+Dim objExcel
+Dim objWorkbook
+Dim objWorksheet
+Dim SourceGUID 
+Dim TargetGUID 
+Dim ConnectorType 
+Dim skipFirstRow 
+Dim objRow
+
+' Create an Excel Application object
+Set objExcel = CreateObject("Excel.Application")
+' Open the Excel workbook
+Set objWorkbook = objExcel.Workbooks.Open("path\to\Relationship List.xlsm")
+
+function addConnector(SourceElementGUID, TargetElementGUID, ConnectorType)
+    dim SourceElement
+    dim TargetElement
+    dim NewConnector
+    
+    Set SourceElement = Repository.GetElementByGuid(SourceElementGUID)
+    Set TargetElement = Repository.GetElementByGuid(TargetElementGUID)
+
+    ' Create the new connector at the source element
+	' Connectors is a collection and the method is AddNew(string Name, string Type)
+	' Type can be basic UML element type or a fully qualified element type (stereotype) defined by a profile, such as SysML::Requirement
+    Set NewConnector = SourceElement.Connectors.AddNew(" ", ConnectorType) 
+
+    ' Set the target element
+    NewConnector.SupplierID = TargetElement.ElementID
+
+    ' Extra fields below if needed
+    ' NewConnector.Stereotype = "RequirementRelated"
+    ' NewConnector.Direction = "Source -> Destination"
+
+    ' Save the connector
+    NewConnector.Update
+
+    ' Return the connector
+    set addConnector = NewConnector
+end function
+
+
+
+
+
+
+
+
+
+
+' Assuming data is in the first worksheet (change as needed)
+Set objWorksheet = objWorkbook.Sheets(1)
+
+' Initialize a flag to skip the first row which 
+
+skipFirstRow = True
+
+
+' Loop through rows in Excel and create EA elements
+For Each objRow In objWorksheet.UsedRange.Rows
+    If skipFirstRow Then
+        skipFirstRow = False ' Set the flag to False for subsequent rows
+    Else
+        ' Assuming the columns contain data you need (adjust column numbers)
+        SourceGUID = objRow.Cells(1).Value 'FROM_GUID equivalent to EA Source
+        TargetGUID = objRow.Cells(3).Value 'TO_GUID equivelent to EA Target
+        ConnectorType = objRow.Cells(6).Value 'Full relationship type in the form Profile::Stereotype
+
+        ' Call the addConnector function to create the connector in EA
+        Call addConnector(SourceGUID, TargetGUID, ConnectorType)
+    End If
+Next
+
+' Release objects
+Set objWorksheet = Nothing
+Set objWorkbook = Nothing
+
+On Error Resume Next
+
+' Quit Excel and release the Excel Application object
+objExcel.Quit
+
+' Check for errors when quitting Excel
+If Err.Number <> 0 Then
+    Session.Output "Error quitting Excel: " & Err.Description
+End If
+
+' Release the Excel Application object
+Set objExcel = Nothing
